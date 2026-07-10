@@ -1,0 +1,6 @@
+{
+  "name": "PARAMDHAM PODHI ASHRAM",
+  "description": "Official communication platform for Paramdham Podhi Ashram. Experience peaceful spiritual connections, daily thoughts, holy library, gallery, and live sabhas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
