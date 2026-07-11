@@ -201,6 +201,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
   }
 
+  fun resetPassword(email: String, onResult: (Boolean, String?) -> Unit) {
+    viewModelScope.launch {
+      val res = authRepository.resetPassword(email)
+      if (res.isSuccess) {
+        showToast("Password reset email sent to $email!")
+        onResult(true, null)
+      } else {
+        onResult(false, res.exceptionOrNull()?.message)
+      }
+    }
+  }
+
   fun loginWithPhoneOTP(phoneNumber: String, otp: String, onResult: (Boolean, String?) -> Unit) {
     viewModelScope.launch {
       val res = authRepository.loginWithPhoneOTP(phoneNumber, otp)

@@ -240,7 +240,29 @@ fun AuthScreen(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
               )
-              Spacer(modifier = Modifier.height(16.dp))
+              Spacer(modifier = Modifier.height(4.dp))
+              TextButton(
+                onClick = {
+                  if (email.isBlank()) {
+                    errorMessage = "Please enter your email first to reset your password."
+                  } else {
+                    isProcessing = true
+                    errorMessage = null
+                    viewModel.resetPassword(email) { success, err ->
+                      isProcessing = false
+                      if (success) {
+                        viewModel.showToast("Password reset email sent to $email!")
+                      } else {
+                        errorMessage = err ?: "Failed to send password reset email."
+                      }
+                    }
+                  }
+                },
+                modifier = Modifier.align(Alignment.End)
+              ) {
+                Text("Forgot Password?", fontSize = 12.sp)
+              }
+              Spacer(modifier = Modifier.height(8.dp))
               Button(
                 onClick = {
                   isProcessing = true

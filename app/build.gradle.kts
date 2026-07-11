@@ -1,5 +1,18 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 
+// Dynamically create .env file from environment variables if available
+val envFile = file("${rootDir}/.env")
+val envUrl = System.getenv("SUPABASE_URL")
+val envKey = System.getenv("SUPABASE_ANON_KEY")
+if (envUrl != null || envKey != null) {
+  val url = envUrl ?: ""
+  val key = envKey ?: ""
+  envFile.writeText("""
+    SUPABASE_URL=$url
+    SUPABASE_ANON_KEY=$key
+  """.trimIndent())
+}
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)

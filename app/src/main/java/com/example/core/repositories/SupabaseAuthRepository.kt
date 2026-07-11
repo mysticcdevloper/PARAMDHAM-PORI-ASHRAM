@@ -2,16 +2,12 @@ package com.example.core.repositories
 
 import android.util.Log
 import com.example.core.config.SupabaseConfig
-import com.example.core.api.SupabaseApi
-import com.example.core.api.SupabaseSignInRequest
-import com.example.core.api.SupabaseSignUpRequest
+import com.example.core.api.*
 import com.example.core.models.MemberProfile
 import com.example.core.models.MemberStatus
 import com.example.core.models.SpiritualRole
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import java.util.UUID
 
 interface SupabaseAuthRepository {
@@ -23,11 +19,22 @@ interface SupabaseAuthRepository {
   suspend fun registerNewMember(profile: MemberProfile, inviteCode: String?): Result<MemberProfile>
   suspend fun signOut(): Result<Unit>
   suspend fun updateLocalProfile(profile: MemberProfile)
+  suspend fun resetPassword(email: String): Result<Unit>
 }
 
 class SupabaseAuthRepositoryImpl : SupabaseAuthRepository {
+  companion object {
+    private val _currentProfileStatic = MutableStateFlow<MemberProfile?>(null)
+    val currentProfileStatic: StateFlow<MemberProfile?> = _currentProfileStatic.asStateFlow()
+  }
+
   private val _currentUserProfile = MutableStateFlow<MemberProfile?>(null)
   override val currentUserProfile: Flow<MemberProfile?> = _currentUserProfile.asStateFlow()
+
+  private fun updateProfile(profile: MemberProfile?) {
+    _currentUserProfile.value = profile
+    _currentProfileStatic.value = profile
+  }
 
   init {
     if (SupabaseConfig.isConfigured()) {
@@ -35,7 +42,7 @@ class SupabaseAuthRepositoryImpl : SupabaseAuthRepository {
     } else {
       Log.d("SupabaseAuth", "Auth Repository Initialized in SANDBOX/DEMO FALLBACK MODE (No keys configured).")
     }
-    _currentUserProfile.value = null
+    updateProfile(null)
   }
 
   override suspend fun loginWithEmail(email: String, password: String): Result<MemberProfile> {
@@ -66,7 +73,7 @@ class SupabaseAuthRepositoryImpl : SupabaseAuthRepository {
               listOf(SpiritualRole.VERIFIED_MEMBER, SpiritualRole.VOLUNTEER)
             }
           )
-          _currentUserProfile.value = profile
+          updateProfile(profile)
           Result.success(profile)
         } else {
           val errorText = response.errorBody()?.string() ?: "Authentication rejected by server."
@@ -98,7 +105,7 @@ class SupabaseAuthRepositoryImpl : SupabaseAuthRepository {
         participationLevel = 5,
         achievements = listOf("Dharma Seva Award", "Siddhant Vani Master")
       )
-      _currentUserProfile.value = admin
+      updateProfile(admin)
       return Result.success(admin)
     }
 
@@ -119,7 +126,7 @@ class SupabaseAuthRepositoryImpl : SupabaseAuthRepository {
       participationLevel = 3,
       achievements = listOf("Weekly Seva Regular")
     )
-    _currentUserProfile.value = member
+    updateProfile(member)
     return Result.success(member)
   }
 
@@ -145,7 +152,7 @@ class SupabaseAuthRepositoryImpl : SupabaseAuthRepository {
       memberSince = "June 2024",
       participationLevel = 4
     )
-    _currentUserProfile.value = userProfile
+    updateProfile(userProfile)
     return Result.success(userProfile)
   }
 
@@ -167,7 +174,7 @@ class SupabaseAuthRepositoryImpl : SupabaseAuthRepository {
       memberSince = "July 2026",
       participationLevel = 1
     )
-    _currentUserProfile.value = googleProfile
+    updateProfile(googleProfile)
     return Result.success(googleProfile)
   }
 
@@ -198,7 +205,7 @@ class SupabaseAuthRepositoryImpl : SupabaseAuthRepository {
             status = if (inviteCode == "GURU77" || inviteCode == "ADMIN123") MemberStatus.APPROVED else MemberStatus.PENDING,
             roles = assignedRoles
           )
-          _currentUserProfile.value = finalProfile
+          updateProfile(finalProfile)
           Result.success(finalProfile)
         } else {
           val errorText = response.errorBody()?.string() ?: "Registration failed."
@@ -222,17 +229,38 @@ class SupabaseAuthRepositoryImpl : SupabaseAuthRepository {
       roles = assignedRoles
     )
     
-    _currentUserProfile.value = finalProfile
+    updateProfile(finalProfile)
     return Result.success(finalProfile)
   }
 
   override suspend fun signOut(): Result<Unit> {
     delay(500)
-    _currentUserProfile.value = null
+    updateProfile(null)
     return Result.success(Unit)
   }
 
   override suspend fun updateLocalProfile(profile: MemberProfile) {
-    _currentUserProfile.value = profile
+    updateProfile(profile)
+  }
+
+  override suspend fun resetPassword(email: String): Result<Unit> {
+    if (SupabaseConfig.isConfigured()) {
+      return try {
+        Log.d("SupabaseAuth", "Sending reset password link via live GoTrue Auth system to: $email")
+        val api = SupabaseApi.get()
+        val response = api.recoverPassword(com.example.core.api.SupabaseRecoverPasswordRequest(email))
+        if (response.isSuccessful) {
+          Result.success(Unit)
+        } else {
+          val errorText = response.errorBody()?.string() ?: "Password reset request failed."
+          Result.failure(Exception(errorText))
+        }
+      } catch (e: Exception) {
+        Log.e("SupabaseAuth", "Live password reset failed: ${e.message}", e)
+        Result.failure(e)
+      }
+    }
+    delay(1000)
+    return Result.success(Unit)
   }
 }

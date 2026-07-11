@@ -23,6 +23,10 @@ data class SupabaseSignInRequest(
   val password: String
 )
 
+data class SupabaseRecoverPasswordRequest(
+  val email: String
+)
+
 data class SupabaseUserResponse(
   val id: String,
   val email: String?,
@@ -90,6 +94,19 @@ data class DbBroadcast(
   val sender_id: String? = null
 )
 
+data class DbTypingStatus(
+  val conversation_id: String,
+  val member_id: String,
+  val is_typing: Boolean,
+  val updated_at: String? = null
+)
+
+data class DbPresence(
+  val member_id: String,
+  val online_status: String,
+  val last_seen: String? = null
+)
+
 interface SupabaseApi {
 
   // ==========================================
@@ -104,6 +121,11 @@ interface SupabaseApi {
   suspend fun signInWithEmail(
     @Body request: SupabaseSignInRequest
   ): Response<SupabaseAuthResponse>
+
+  @POST("auth/v1/recover")
+  suspend fun recoverPassword(
+    @Body request: SupabaseRecoverPasswordRequest
+  ): Response<Unit>
 
   @GET("auth/v1/user")
   suspend fun getCurrentUser(
@@ -189,6 +211,36 @@ interface SupabaseApi {
     @Body broadcast: DbBroadcast
   ): Response<Unit>
 
+  // 6. Typing Status
+  @GET("rest/v1/typing_status?select=*")
+  suspend fun getTypingStatuses(
+    @Query("conversation_id") conversationFilter: String
+  ): Response<List<DbTypingStatus>>
+
+  @GET("rest/v1/typing_status?select=*")
+  suspend fun getAllTypingStatuses(): Response<List<DbTypingStatus>>
+
+  @POST("rest/v1/typing_status")
+  @Headers("Prefer: resolution=merge-duplicates")
+  suspend fun upsertTypingStatus(
+    @Body typingStatus: DbTypingStatus
+  ): Response<Unit>
+
+  // 7. Presence
+  @GET("rest/v1/presence?select=*")
+  suspend fun getPresence(
+    @Query("member_id") memberFilter: String
+  ): Response<List<DbPresence>>
+
+  @GET("rest/v1/presence?select=*")
+  suspend fun getAllPresence(): Response<List<DbPresence>>
+
+  @POST("rest/v1/presence")
+  @Headers("Prefer: resolution=merge-duplicates")
+  suspend fun upsertPresence(
+    @Body presence: DbPresence
+  ): Response<Unit>
+
 
   companion object {
     private var instance: SupabaseApi? = null
@@ -214,10 +266,14 @@ interface SupabaseApi {
           .addLast(KotlinJsonAdapterFactory())
           .build()
 
-        val baseUrl = if (SupabaseConfig.supabaseUrl.endsWith("/")) {
-          SupabaseConfig.supabaseUrl
+        var rawUrl = SupabaseConfig.supabaseUrl
+        if (rawUrl.contains("/rest/v1")) {
+          rawUrl = rawUrl.substringBefore("/rest/v1")
+        }
+        val baseUrl = if (rawUrl.endsWith("/")) {
+          rawUrl
         } else {
-          "${SupabaseConfig.supabaseUrl}/"
+          "$rawUrl/"
         }
 
         instance = Retrofit.Builder()

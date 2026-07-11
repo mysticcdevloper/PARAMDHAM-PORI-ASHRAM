@@ -36,11 +36,11 @@ class ChatRepositoryImpl : ChatRepository {
   private val _typingStatus = MutableStateFlow<Map<String, Set<String>>>(emptyMap()) // Map<ConversationId, Set<MemberId>>
 
   init {
-    seedInitialData()
     if (SupabaseConfig.isConfigured()) {
       Log.d("ChatRepoSync", "Chat Repository Initialized in LIVE SUPABASE MODE.")
       startSupabaseSync()
     } else {
+      seedInitialData()
       Log.d("ChatRepoSync", "Chat Repository Initialized in SANDBOX/DEMO FALLBACK MODE (No keys configured).")
       startRealtimeSimulation()
     }
@@ -56,7 +56,50 @@ class ChatRepositoryImpl : ChatRepository {
           // 1. Fetch Conversations
           val convResponse = api.getConversations()
           if (convResponse.isSuccessful && convResponse.body() != null) {
-            val dbConvs = convResponse.body()!!
+            var dbConvs = convResponse.body()!!
+            
+            // Check for default group
+            val defaultGroupName = "PARAMDHAM PODHI ASHRAM"
+            var defaultGroup = dbConvs.find { it.name.equals(defaultGroupName, ignoreCase = true) }
+            if (defaultGroup == null) {
+              Log.d("ChatRepoSync", "Default group '$defaultGroupName' not found. Creating automatically...")
+              val newGroup = com.example.core.api.DbConversation(
+                name = defaultGroupName,
+                description = "Default spiritual discussion and daily satsang updates for all verified seekers of Podhi Ashram.",
+                is_group = true,
+                avatar_url = "https://losqinwbzucmziluutok.supabase.co/storage/v1/object/public/stickers/ashram_default.png"
+              )
+              val createResponse = api.createConversation(newGroup)
+              if (createResponse.isSuccessful && createResponse.body()?.isNotEmpty() == true) {
+                defaultGroup = createResponse.body()!!.first()
+                Log.d("ChatRepoSync", "Created default group '$defaultGroupName'!")
+                dbConvs = dbConvs + defaultGroup
+              }
+            }
+
+            // Auto-join current user to default group if not already a member
+            val currentProfile = SupabaseAuthRepositoryImpl.currentProfileStatic.value
+            if (defaultGroup != null && currentProfile != null) {
+              try {
+                val defaultGroupId = defaultGroup.id!!
+                val membersResponse = api.getGroupMembers(conversationFilter = "eq.$defaultGroupId")
+                if (membersResponse.isSuccessful && membersResponse.body() != null) {
+                  val isMember = membersResponse.body()!!.any { it.member_id == currentProfile.id }
+                  if (!isMember) {
+                    Log.d("ChatRepoSync", "Auto-joining current user (${currentProfile.fullName}) to default group...")
+                    api.addGroupMember(com.example.core.api.DbGroupMember(
+                      conversation_id = defaultGroupId,
+                      member_id = currentProfile.id,
+                      role = "Verified Member",
+                      is_approved = true
+                    ))
+                  }
+                }
+              } catch (e: Exception) {
+                Log.e("ChatRepoSync", "Failed to auto-join current user to default group: ${e.message}")
+              }
+            }
+
             val mappedConvs = dbConvs.map { db ->
               ChatConversation(
                 id = db.id ?: "conv_${UUID.randomUUID().toString().take(6)}",
@@ -109,6 +152,48 @@ class ChatRepositoryImpl : ChatRepository {
               )
             }
             _activeBroadcasts.value = mappedBroads
+          }
+
+          // 4. Update current user's presence & fetch all presences
+          val currentProfile = SupabaseAuthRepositoryImpl.currentProfileStatic.value
+          if (currentProfile != null) {
+            try {
+              api.upsertPresence(com.example.core.api.DbPresence(member_id = currentProfile.id, online_status = "ONLINE"))
+            } catch (e: Exception) {
+              Log.e("ChatRepoSync", "Failed to update current user presence: ${e.message}")
+            }
+          }
+
+          try {
+            val presenceResponse = api.getAllPresence()
+            if (presenceResponse.isSuccessful && presenceResponse.body() != null) {
+              val mappedPresence = presenceResponse.body()!!.associate {
+                val status = try {
+                  OnlineStatus.valueOf(it.online_status)
+                } catch (e: Exception) {
+                  OnlineStatus.ONLINE
+                }
+                it.member_id to status
+              }
+              _memberPresence.value = mappedPresence
+            }
+          } catch (e: Exception) {
+            Log.e("ChatRepoSync", "Failed to fetch all presences: ${e.message}")
+          }
+
+          // 5. Fetch typing statuses
+          try {
+            val typingResponse = api.getAllTypingStatuses()
+            if (typingResponse.isSuccessful && typingResponse.body() != null) {
+              // Group active typing statuses by conversation_id
+              val activeTypingMap = typingResponse.body()!!
+                .filter { it.is_typing }
+                .groupBy({ it.conversation_id }, { it.member_id })
+                .mapValues { it.value.toSet() }
+              _typingStatus.value = activeTypingMap
+            }
+          } catch (e: Exception) {
+            Log.e("ChatRepoSync", "Failed to fetch typing statuses: ${e.message}")
           }
 
         } catch (e: Exception) {
@@ -183,11 +268,16 @@ class ChatRepositoryImpl : ChatRepository {
       return try {
         Log.d("ChatRepoSync", "Publishing message to live Supabase channel: $content")
         val api = SupabaseApi.get()
+        val currentProfile = SupabaseAuthRepositoryImpl.currentProfileStatic.value
+        val senderId = currentProfile?.id ?: "curr_user"
+        val senderName = currentProfile?.fullName ?: "You"
+        val senderRoleIcon = if (currentProfile?.email?.contains("admin", ignoreCase = true) == true) "👑" else "🙏"
+
         val dbMsg = com.example.core.api.DbMessage(
           conversation_id = conversationId,
-          sender_id = "curr_user",
-          sender_name = "You",
-          sender_role_icon = "👑",
+          sender_id = senderId,
+          sender_name = senderName,
+          sender_role_icon = senderRoleIcon,
           content = content,
           type = type.name,
           status = "READ"
@@ -442,8 +532,8 @@ class ChatRepositoryImpl : ChatRepository {
             name = db.name,
             description = db.description,
             isGroup = db.is_group,
-            groupMembers = (members + "curr_user").distinct(),
-            groupAdmins = listOf("curr_user"),
+            groupMembers = (members + creatorId).distinct(),
+            groupAdmins = listOf(creatorId),
             createdBy = creatorId,
             inviteLink = db.invite_link,
             qrCodeText = db.qr_code_text
