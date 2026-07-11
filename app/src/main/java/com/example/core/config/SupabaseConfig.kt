@@ -25,7 +25,10 @@ object SupabaseConfig {
 
   init {
     Log.d("SupabaseConfig", "Initializing Supabase Client...")
-    Log.d("SupabaseConfig", "Supabase URL: $supabaseUrl")
-    Log.d("SupabaseConfig", "Supabase Anon Key is present: ${supabaseAnonKey.isNotEmpty()}")
+    if (isConfigured()) {
+      Log.d("SupabaseConfig", "Supabase is CONFIGURED! Connecting to live database and auth systems at: $supabaseUrl")
+    } else {
+      Log.d("SupabaseConfig", "Supabase is NOT configured. All systems will run in offline/local SANDBOX simulation mode.")
+    }
   }
 }

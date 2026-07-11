@@ -66,9 +66,9 @@ fun RajShyamaLogo(
           Color(0xFF020215)
         ),
         center = center,
-        radius = w / 2f
+        radius = (w / 2f).coerceAtLeast(1f)
       ),
-      radius = w / 2f
+      radius = (w / 2f).coerceAtLeast(1f)
     )
 
     // 2. Draw golden background rays/aura rotating gently

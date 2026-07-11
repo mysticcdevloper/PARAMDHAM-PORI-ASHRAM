@@ -204,6 +204,12 @@ object AppConstants {
   )
 
   fun getTranslation(lang: AppLanguage, key: String): String {
-    return TRANSLATIONS[lang]?.get(key) ?: key
+    val translated = TRANSLATIONS[lang]?.get(key)
+    if (translated != null) return translated
+    return when (key) {
+      "directory" -> if (lang == AppLanguage.HINDI) "निर्देशिका" else if (lang == AppLanguage.GUJARATI) "ડિરેક્ટરી" else "Directory"
+      "admin" -> if (lang == AppLanguage.HINDI) "प्रशासन" else if (lang == AppLanguage.GUJARATI) "વહીવટ" else "Admin Board"
+      else -> key
+    }
   }
 }

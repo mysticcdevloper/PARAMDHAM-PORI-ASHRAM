@@ -85,32 +85,16 @@ fun OnboardingScreen(
   val pagerState = rememberPagerState(pageCount = { pages.size })
   val scope = rememberCoroutineScope()
 
-  Box(
+  Scaffold(
     modifier = Modifier
       .fillMaxSize()
-      .background(
-        brush = Brush.verticalGradient(
-          colors = listOf(
-            MaterialTheme.colorScheme.background,
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-          )
-        )
-      )
-      .testTag("onboarding_root")
-  ) {
-    FloatingParticlesBackground(particleColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-
-    Column(
-      modifier = Modifier
-        .fillMaxSize()
-        .systemBarsPadding()
-        .padding(24.dp),
-      horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-      // Top row: Logo and Skip Button
+      .testTag("onboarding_root"),
+    topBar = {
       Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+          .fillMaxWidth()
+          .statusBarsPadding()
+          .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
@@ -140,27 +124,13 @@ fun OnboardingScreen(
           )
         }
       }
-
-      Spacer(modifier = Modifier.weight(0.1f))
-
-      // Middle: Pager
-      HorizontalPager(
-        state = pagerState,
-        modifier = Modifier
-          .fillMaxWidth()
-          .weight(0.8f)
-      ) { pageIndex ->
-        val page = pages[pageIndex]
-        OnboardingPageView(page = page, language = language)
-      }
-
-      Spacer(modifier = Modifier.height(16.dp))
-
-      // Bottom Row: Indicators and Actions
+    },
+    bottomBar = {
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .padding(bottom = 16.dp),
+          .navigationBarsPadding()
+          .padding(horizontal = 24.dp, vertical = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
@@ -182,51 +152,71 @@ fun OnboardingScreen(
         }
 
         // Action Button (Next / Get Started)
-        AnimatedContent(
-          targetState = pagerState.currentPage == pages.size - 1,
-          transitionSpec = {
-            slideInHorizontally { width -> width } + fadeIn() togetherWith
-            slideOutHorizontally { width -> -width } + fadeOut()
-          },
-          label = "onboarding_btn"
-        ) { isLastPage ->
-          if (isLastPage) {
-            Button(
-              onClick = { onFinished() },
-              colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-              shape = RoundedCornerShape(16.dp),
-              modifier = Modifier
-                .testTag("onboarding_get_started_btn")
-                .height(52.dp)
-            ) {
-              Text(
-                text = AppConstants.getTranslation(language, "onboarding_start"),
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                color = MaterialTheme.colorScheme.onPrimary
-              )
-            }
-          } else {
-            IconButton(
-              onClick = {
-                scope.launch {
-                  pagerState.animateScrollToPage(pagerState.currentPage + 1)
+        if (pagerState.currentPage == pages.size - 1) {
+          Button(
+            onClick = { onFinished() },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+              .testTag("onboarding_get_started_btn")
+              .height(52.dp)
+          ) {
+            Text(
+              text = AppConstants.getTranslation(language, "onboarding_start"),
+              fontWeight = FontWeight.Bold,
+              fontSize = 15.sp,
+              color = MaterialTheme.colorScheme.onPrimary
+            )
+          }
+        } else {
+          FilledIconButton(
+            onClick = {
+              scope.launch {
+                val nextPage = pagerState.currentPage + 1
+                if (nextPage < pages.size) {
+                  pagerState.animateScrollToPage(nextPage)
                 }
-              },
-              modifier = Modifier
-                .size(52.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary)
-                .testTag("onboarding_next_btn")
-            ) {
-              Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "Next Page",
-                tint = MaterialTheme.colorScheme.onPrimary
-              )
-            }
+              }
+            },
+            colors = IconButtonDefaults.filledIconButtonColors(
+              containerColor = MaterialTheme.colorScheme.primary,
+              contentColor = MaterialTheme.colorScheme.onPrimary
+            ),
+            modifier = Modifier
+              .size(52.dp)
+              .testTag("onboarding_next_btn")
+          ) {
+            Icon(
+              imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+              contentDescription = "Next Page",
+              modifier = Modifier.size(24.dp)
+            )
           }
         }
+      }
+    },
+    containerColor = MaterialTheme.colorScheme.background
+  ) { innerPadding ->
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(innerPadding)
+        .background(
+          brush = Brush.verticalGradient(
+            colors = listOf(
+              MaterialTheme.colorScheme.background,
+              MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+              MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+            )
+          )
+        )
+    ) {
+      HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize()
+      ) { pageIndex ->
+        val page = pages[pageIndex]
+        OnboardingPageView(page = page, language = language)
       }
     }
   }
@@ -243,11 +233,13 @@ fun OnboardingPageView(page: OnboardingPageData, language: AppLanguage) {
     GlassmorphicCard(
       modifier = Modifier
         .fillMaxWidth()
-        .height(280.dp),
+        .padding(horizontal = 24.dp),
       borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
     ) {
       Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(260.dp),
         contentAlignment = Alignment.Center
       ) {
         val prim = MaterialTheme.colorScheme.primary
@@ -258,14 +250,14 @@ fun OnboardingPageView(page: OnboardingPageData, language: AppLanguage) {
         Canvas(modifier = Modifier.fillMaxSize()) {
           val cx = size.width / 2
           val cy = size.height / 2
-          val radius = size.width.coerceAtMost(size.height) * 0.35f
+          val radius = (size.width.coerceAtMost(size.height) * 0.35f).coerceAtLeast(1f)
 
           // Inner Divine Background Halo
           drawCircle(
             brush = Brush.radialGradient(
               colors = listOf(tert.copy(alpha = 0.35f), Color.Transparent),
               center = Offset(cx, cy),
-              radius = radius * 1.2f
+              radius = (radius * 1.2f).coerceAtLeast(1f)
             ),
             radius = radius * 1.2f,
             center = Offset(cx, cy)

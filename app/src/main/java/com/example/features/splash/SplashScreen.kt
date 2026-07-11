@@ -3,6 +3,7 @@ package com.example.features.splash
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -56,19 +57,29 @@ fun SplashScreen(
     label = "pulse"
   )
 
+  var navigated by remember { mutableStateOf(false) }
+
+  val navigateNext = {
+    if (!navigated) {
+      navigated = true
+      if (isOnboardingCompleted) {
+        onNavigateToMain()
+      } else {
+        onNavigateToOnboarding()
+      }
+    }
+  }
+
   LaunchedEffect(key1 = true) {
     startAnimation = true
     delay(2800) // Beautiful peaceful delay
-    if (isOnboardingCompleted) {
-      onNavigateToMain()
-    } else {
-      onNavigateToOnboarding()
-    }
+    navigateNext()
   }
 
   Box(
     modifier = Modifier
       .fillMaxSize()
+      .clickable { navigateNext() }
       .background(
         brush = Brush.verticalGradient(
           colors = listOf(
@@ -111,9 +122,9 @@ fun SplashScreen(
             brush = Brush.radialGradient(
               colors = listOf(accentColor.copy(alpha = 0.28f), Color.Transparent),
               center = center,
-              radius = w * 0.48f * pulseFactor
+              radius = (w * 0.48f * pulseFactor).coerceAtLeast(1f)
             ),
-            radius = w * 0.48f * pulseFactor,
+            radius = (w * 0.48f * pulseFactor).coerceAtLeast(1f),
             center = center
           )
 

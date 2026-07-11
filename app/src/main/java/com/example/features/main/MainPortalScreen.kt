@@ -22,15 +22,18 @@ import com.example.features.home.HomeScreen
 import com.example.features.library.LibraryScreen
 import com.example.features.more.MoreScreen
 import com.example.features.sabha.LiveSabhaScreen
+import com.example.features.directory.MemberDirectoryScreen
+import com.example.features.profile.ProfileScreen
+import com.example.features.admin.AdminDashboardScreen
 import com.example.ui.viewmodel.AppViewModel
 
 sealed class PortalTab(val route: String, val icon: ImageVector, val labelKey: String) {
   object Home : PortalTab("home", Icons.Default.Home, "home")
+  object Directory : PortalTab("directory", Icons.Default.ContactPhone, "directory")
   object Chats : PortalTab("chats", Icons.Default.Chat, "chats")
   object Sabha : PortalTab("sabha", Icons.Default.Podcasts, "sabha")
-  object Library : PortalTab("library", Icons.Default.MenuBook, "library")
-  object Gallery : PortalTab("gallery", Icons.Default.PhotoLibrary, "gallery")
-  object More : PortalTab("more", Icons.Default.Settings, "more")
+  object Admin : PortalTab("admin", Icons.Default.AdminPanelSettings, "admin")
+  object More : PortalTab("more", Icons.Default.AccountCircle, "more")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,15 +44,23 @@ fun MainPortalScreen(
   onLogout: () -> Unit
 ) {
   var activeTab by remember { mutableStateOf<PortalTab>(PortalTab.Home) }
+  val currentUserProfile by viewModel.currentUserProfile.collectAsState()
+  
+  val isAdmin = currentUserProfile?.roles?.any { it.name == "Admin" } == true
 
-  val tabs = listOf(
-    PortalTab.Home,
-    PortalTab.Chats,
-    PortalTab.Sabha,
-    PortalTab.Library,
-    PortalTab.Gallery,
-    PortalTab.More
-  )
+  // Construct tabs dynamically
+  val tabs = remember(isAdmin) {
+    mutableListOf<PortalTab>().apply {
+      add(PortalTab.Home)
+      add(PortalTab.Directory)
+      add(PortalTab.Chats)
+      add(PortalTab.Sabha)
+      if (isAdmin) {
+        add(PortalTab.Admin)
+      }
+      add(PortalTab.More)
+    }
+  }
 
   Scaffold(
     modifier = Modifier
@@ -113,13 +124,13 @@ fun MainPortalScreen(
             viewModel = viewModel,
             language = language,
             onNavigateToSabha = { activeTab = PortalTab.Sabha },
-            onNavigateToGallery = { activeTab = PortalTab.Gallery }
+            onNavigateToGallery = { activeTab = PortalTab.More }
           )
+          PortalTab.Directory -> MemberDirectoryScreen(viewModel = viewModel)
           PortalTab.Chats -> ChatsScreen(language = language)
           PortalTab.Sabha -> LiveSabhaScreen(language = language)
-          PortalTab.Library -> LibraryScreen(language = language)
-          PortalTab.Gallery -> GalleryScreen(language = language)
-          PortalTab.More -> MoreScreen(viewModel = viewModel, language = language)
+          PortalTab.Admin -> AdminDashboardScreen(viewModel = viewModel)
+          PortalTab.More -> ProfileScreen(viewModel = viewModel, onLogout = onLogout)
         }
       }
     }

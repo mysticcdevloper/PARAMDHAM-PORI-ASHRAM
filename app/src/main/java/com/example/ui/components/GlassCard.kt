@@ -94,9 +94,9 @@ fun DivineGlowEffect(
           Color.Transparent
         ),
         center = Offset(canvasWidth / 2, canvasHeight / 2),
-        radius = canvasWidth * 0.45f * pulseScale
+        radius = (canvasWidth * 0.45f * pulseScale).coerceAtLeast(1f)
       ),
-      radius = canvasWidth * 0.45f * pulseScale,
+      radius = (canvasWidth * 0.45f * pulseScale).coerceAtLeast(1f),
       center = Offset(canvasWidth / 2, canvasHeight / 2)
     )
   }
