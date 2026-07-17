@@ -467,6 +467,13 @@ fun ChatRoomView(
               }
               isAttachmentOpen = false
             },
+            onVideoSelect = {
+              scope.launch {
+                val videoAttach = ChatAttachment("vid_${System.currentTimeMillis()}", "Divine_Satsang_Clip.mp4", "video", "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4", 12400000L, 45)
+                viewModel.chatRepository.sendMessage(conversation.id, "Video: Divine Satsang Clip Shared 🎥", MessageType.VIDEO, attachment = videoAttach)
+              }
+              isAttachmentOpen = false
+            },
             onDocSelect = {
               scope.launch {
                 val docAttach = ChatAttachment("doc_${System.currentTimeMillis()}", "Siddhant_Vani_Holy_Scripture.pdf", "document", "https://podhiashram.org/holy_verses.pdf", 4500000L)
@@ -786,6 +793,30 @@ fun MessageBubble(
           }
           Spacer(modifier = Modifier.height(4.dp))
         }
+        MessageType.VIDEO -> {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(140.dp)
+              .clip(RoundedCornerShape(8.dp))
+              .background(Color.DarkGray)
+          ) {
+            Icon(
+              Icons.Default.PlayArrow,
+              contentDescription = "Play Video",
+              tint = Color.White,
+              modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.5f))
+                .padding(10.dp)
+                .align(Alignment.Center)
+            )
+            Text(attach.name, modifier = Modifier.align(Alignment.BottomStart).padding(8.dp), fontSize = 10.sp, color = Color.White)
+            Text("🎥 Video • 12.4 MB", modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp), fontSize = 10.sp, color = Color.White)
+          }
+          Spacer(modifier = Modifier.height(4.dp))
+        }
         MessageType.DOCUMENT -> {
           Row(
             modifier = Modifier
@@ -948,6 +979,7 @@ fun MessageBubble(
 @Composable
 fun AttachmentDrawer(
   onImageSelect: () -> Unit,
+  onVideoSelect: () -> Unit,
   onDocSelect: () -> Unit,
   onStickerSelect: (String, String) -> Unit,
   onCreatePoll: () -> Unit,
@@ -965,6 +997,7 @@ fun AttachmentDrawer(
         horizontalArrangement = Arrangement.SpaceAround
       ) {
         AttachmentIcon(Icons.Default.Image, "Photos") { onImageSelect() }
+        AttachmentIcon(Icons.Default.Videocam, "Videos") { onVideoSelect() }
         AttachmentIcon(Icons.Default.InsertDriveFile, "Holy Books") { onDocSelect() }
         AttachmentIcon(Icons.Default.BarChart, "Spiritual Poll") { onCreatePoll() }
         AttachmentIcon(Icons.Default.Timer, "Schedule Greeting") { onSchedule() }

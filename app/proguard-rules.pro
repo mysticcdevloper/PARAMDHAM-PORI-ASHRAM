@@ -16,6 +16,22 @@
 # debugging stack traces.
 #-keepattributes SourceFile,LineNumberTable
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep our data models, database entities, and API models to prevent Moshi reflection errors
+-keep class com.example.core.models.** { *; }
+-keep class com.example.core.api.** { *; }
+-keep class com.example.database.** { *; }
+
+# Keep Moshi, OkHttp, Retrofit, and associated metadata
+-keep class com.squareup.moshi.** { *; }
+-keep class okhttp3.** { *; }
+-keep class retrofit2.** { *; }
+-keepclassmembers class * {
+    @com.squareup.moshi.Json *;
+}
+
+# Keep support for reflection-based Moshi JSON serialization
+-keepattributes Signature, InnerClasses, EnclosingMethod, AnnotationDefault, *Annotation*
+-dontwarn com.squareup.moshi.**
+-dontwarn okio.**
+-dontwarn javax.annotation.**
+
